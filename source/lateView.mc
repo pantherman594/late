@@ -233,7 +233,7 @@ class lateView extends Ui.WatchFace {
 		//rain = app.getProperty("rain");
 		dateForm = app.getProperty("dateForm");
 		
-		var activities = [null, :steps, :calories, :activeMinutesDay, :activeMinutesWeek, :floorsClimbed, :calendar];
+		var activities = [null, :steps, :calories, :activeMinutesDay, :activeMinutesWeek, :floorsClimbed, :calendar, :timeHour, :timeMinute];
 		activity = activities[app.getProperty("activity")];
 		activityL = activities[app.getProperty("activityL")];
 		activityR = activities[app.getProperty("activityR")];
@@ -666,7 +666,7 @@ class lateView extends Ui.WatchFace {
 			drawActivity(dc, activityL, x, centerY, false);
 			drawActivity(dc, activityR, centerX<<1-x, centerY, false);
 		}
-		drawTime(dc);
+		drawTime(dc, activityR != :timeMinute);
 		if(activity != null || message){
 				if(activity == :calendar || message){
 					drawEvent(dc);
@@ -722,7 +722,20 @@ class lateView extends Ui.WatchFace {
 	}
 
 	function drawActivity(dc, activity, x, y, horizontal){
-		if(activity != null){
+		if(activity == :timeHour) {
+			var h = clockTime.hour;
+			var set = Sys.getDeviceSettings();
+			if(set.is24Hour == false){
+				if(h > 11){ h -= 12; }
+				if(h == 0){ h = 12; }
+			}
+			dc.setColor(color, Gfx.COLOR_TRANSPARENT);
+			dc.drawText(x, y, fontCondensed, h.format("%0.1d"), Gfx.TEXT_JUSTIFY_CENTER | Gfx.TEXT_JUSTIFY_VCENTER);
+		} else if(activity == :timeMinute) {
+			var m = clockTime.min; 
+			dc.setColor(color, Gfx.COLOR_TRANSPARENT);
+			dc.drawText(x, y, fontCondensed, m.format("%0.2d"), Gfx.TEXT_JUSTIFY_CENTER | Gfx.TEXT_JUSTIFY_VCENTER);
+		} else if(activity != null){
 			//Sys.println("ActivityMonitor");
 			var info = Toy.ActivityMonitor.getInfo();
 			var activityChar = {:steps=>'s', :calories=>'c', :activeMinutesDay=>'a', :activeMinutesWeek=>'a', :floorsClimbed=>'f'}[activity];	// todo optimize
@@ -1214,7 +1227,7 @@ class lateView extends Ui.WatchFace {
 	}
 	*/
 	
-	function drawTime (dc){
+	function drawTime (dc, writeMinute){
 		// draw hour
 		var h=clockTime.hour;
 		var set = Sys.getDeviceSettings();
@@ -1249,7 +1262,9 @@ class lateView extends Ui.WatchFace {
 
 		}  else { 
 			dc.setColor(timeColor, Gfx.COLOR_TRANSPARENT);
-			dc.drawText(Math.round(centerX + (radius * sin)), Math.round(centerY - (radius * cos)) , fontSmall, minutes, Gfx.TEXT_JUSTIFY_CENTER | Gfx.TEXT_JUSTIFY_VCENTER);
+			if (writeMinute) {
+				dc.drawText(Math.round(centerX + (radius * sin)), Math.round(centerY - (radius * cos)) , fontSmall, minutes, Gfx.TEXT_JUSTIFY_CENTER | Gfx.TEXT_JUSTIFY_VCENTER);
+			}
 		}
 		dc.drawText(centerX, centerY-(dc.getFontHeight(fontHours)>>1), fontHours, h.format("%0.1d"), Gfx.TEXT_JUSTIFY_CENTER);
 		if(minutes>0){

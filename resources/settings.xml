@@ -45,6 +45,7 @@
 			<listEntry value="0">@Strings.DnD</listEntry>
 			<listEntry value="1">@Strings.Steps</listEntry>
 			<listEntry value="2">@Strings.Calories</listEntry>
+			<listEntry value="8">@Strings.Minutes</listEntry>
 		</settingConfig>
 	</setting>
 	<setting propertyKey="@Properties.percents" title="@Strings.showPercents">
@@ -60,6 +61,7 @@
 
    <setting propertyKey="@Properties.boldness" title="@Strings.Boldness">
 		<settingConfig type="list">
+			<listEntry value="1">@Strings.b1</listEntry>
 			<listEntry value="3">@Strings.b3</listEntry>
 			<!--<listEntry value="4">@Strings.b4</listEntry>-->
 			<listEntry value="5">@Strings.b5</listEntry>

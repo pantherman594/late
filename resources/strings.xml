@@ -23,6 +23,7 @@
 	<string id="DateFormDayOfWeek">Day of week</string>
 	<!-- menu items: choosing a flavor of the watch -->
 	<string id="Boldness">Boldness</string><!-- how bold is the minute arc -->
+	<string id="b1">1</string><!-- do not translate -->
 	<string id="b3">3</string><!-- do not translate -->
 	<!--<string id="b4">4</string>--><!-- do not translate -->
 	<string id="b5">5</string><!-- do not translate -->
@@ -54,4 +55,6 @@
 	<string id="D1224h">12 or 24h dial for sunrise/sunset?</string>
 	<string id="D12h">12h dial</string>
 	<string id="D24h">24h dial</string>	
+	<string id="Hours">Current hours</string>	
+	<string id="Minutes">Current minutes</string>	
 </strings>
