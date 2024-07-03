@@ -8,4 +8,6 @@ late.prg.debug.xml
 late-settings.json
 bin/mir
 bin/gen
-gin/internal-mir
+bin/internal-mir
+.vscode
+developer_key

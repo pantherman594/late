@@ -31,6 +31,8 @@ class lateView extends Ui.WatchFace {
 	hidden var centerX; hidden var centerY; hidden var height;
 	hidden var color; hidden var timeColor; hidden var dateColor; hidden var activityColor; hidden var backgroundColor; hidden var dimmedColor;
 	hidden var calendarColors; 
+	hidden var eventColors = [];
+	hidden var gcalColors = [];
 	var activity=null; var activityL=null; var activityR=null; var showSunrise = false; var dataLoading = false; var showWeather = false; var percentage = false;
 	//hidden var icon=null; hidden var iconL=null; hidden var iconR=null; hidden var sunrs = null; hidden var sunst = null; //hidden var iconNotification;
 	hidden var clockTime; 
@@ -38,7 +40,7 @@ class lateView extends Ui.WatchFace {
 	//hidden var lonW; hidden var latN; 
 	//hidden var sunrise = new [SUNRISET_NBR]; hidden var sunset = new [SUNRISET_NBR];
 	hidden var sunrise; hidden var sunset;
-	hidden var fontSmall = null; hidden var fontHours = null; hidden var fontCondensed = null;
+	hidden var fontSmall = null; hidden var fontHours = null; hidden var fontMedium = null; hidden var fontCondensed = null;
 	hidden var dateY = null; hidden var radius; hidden var circleWidth = 3; hidden var dialSize = 0; hidden var batteryY; hidden var activityY; hidden var messageY; hidden var sunR; //hidden var temp; //hidden var notifY;
 	hidden var icons;
 	hidden var d24;
@@ -90,7 +92,7 @@ class lateView extends Ui.WatchFace {
 				weatherHourly = weather;
 			}
 		}
-		//onBackgroundData({"weather"=>[17, -1, -1, 1, 5.960000, -1, -1, -1, -1, -1, -1, 4, 4, -1, -1, 4, 2, 4, -1, -1, -1, -1, -1, 4, 2, -1, -1, 4, 4]});
+		//onBackgroundData({"weather"=>[8, -1, -1, 1, 5.960000, -1, -1, -1, 0, 0.5, 0.99, 4, 4.5, 4.99, -1, 4, 2, 2.5, 2.99, -1, 3, 3.5, 3.99, 4, 2, 6, 6.5, 6.99, 4]});
 		d24 = app.getProperty("d24") == 1 ? true : false; // making sure it loads for the first time 
 		//Sys.println("init: "+ weatherHourly);
 	}
@@ -277,7 +279,7 @@ class lateView extends Ui.WatchFace {
 		}
 		d24 = d24new;
 		circleWidth = app.getProperty("boldness");
-		if(height>280){
+		if(height>280 && burnInProtection==0){
 			circleWidth=circleWidth<<1;
 		}
 		var tone = app.getProperty("tone").toNumber()%5;
@@ -310,6 +312,22 @@ class lateView extends Ui.WatchFace {
 		onShow();
 	}
 
+	function blendColors(color1, color2, factor) {
+		var r1 = (color1>>16)&0xFF;
+		var g1 = (color1>>8)&0xFF;
+		var b1 = color1&0xFF;
+		var r2 = (color2>>16)&0xFF;
+		var g2 = (color2>>8)&0xFF;
+		var b2 = color2&0xFF;
+		var r = (r1 + (r2 - r1)*factor).toNumber();
+		var g = (g1 + (g2 - g1)*factor).toNumber();
+		var b = (b1 + (b2 - b1)*factor).toNumber();
+		return (r<<16)|(g<<8)|b;
+	}
+
+	function dimColor(color, factor){
+		return blendColors(color, 0, factor);
+	}
 
 	function setColor(mainColor, tone){
 		//	red, 	, yellow, 	green, 		blue, 	violet, 	grey
@@ -347,6 +365,16 @@ class lateView extends Ui.WatchFace {
 			activityColor = 0xAAAAAA;
 			dimmedColor = 0x555555;
 			dateColor = 0xFFFFFF;
+		}
+
+		if (burnInProtection) {
+			var dimFactor = 0.5;
+			backgroundColor = dimColor(backgroundColor, dimFactor);
+			color = dimColor(color, dimFactor);
+			timeColor = dimColor(timeColor, dimFactor);
+			dateColor = dimColor(dateColor, dimFactor);
+			activityColor = dimColor(activityColor, dimFactor);
+			dimmedColor = dimColor(dimmedColor, dimFactor);
 		}
 	}
 
@@ -396,6 +424,10 @@ class lateView extends Ui.WatchFace {
 			}
 		}*/
 		if(activity == :calendar){
+			if (eventColors.size() == 0) {
+				eventColors = loadJsonResource(:evtCol);
+				gcalColors = loadJsonResource(:gcalCol);
+			}
 			if(app.getProperty("calendar_colors") || !(app.getProperty("calendarColors") instanceof Array) ){	// match calendar colors to watch
 				calendarColors = loadJsonResource(:calCol)[mainColor];
 				/*Sys.println( [
@@ -464,6 +496,7 @@ class lateView extends Ui.WatchFace {
 			// TODO sunrs.width() - calendar f6: 6 venu: 10 / weather: f6: 3 venu: 5
 		}
 		fontCondensed = Ui.loadResource(Rez.Fonts.Condensed);
+		fontMedium = Ui.loadResource(Rez.Fonts.Medium);
 		if(dialSize>0){ // strong design
 			fontHours = Ui.loadResource(Rez.Fonts.HoursStrong);
 			fontSmall = Ui.loadResource(Rez.Fonts.SmallStrong);
@@ -569,9 +602,7 @@ class lateView extends Ui.WatchFace {
 				}
 
 				setBaseVars();
-				if(app.getProperty("tone")>2){
-					setColor(app.getProperty("mainColor"), app.getProperty("tone"));
-				}
+				setColor(app.getProperty("mainColor"), app.getProperty("tone"));
 			} catch (ex){
 				initialize();
 			}
@@ -594,9 +625,7 @@ class lateView extends Ui.WatchFace {
 		if(Sys.getDeviceSettings().requiresBurnInProtection){
 			burnInProtection=1;
 			circleWidth=10;
-			if(backgroundColor!=0x0){
-				setColor(app.getProperty("mainColor"), 0);
-			}
+			setColor(app.getProperty("mainColor"), app.getProperty("tone")>2 ? 0 : app.getProperty("tone"));
 		}
 		//App.getApp().setProperty("l", App.getApp().getProperty("l")+"e");
 		//Sys.println(clockTime.min+"e");
@@ -639,6 +668,11 @@ class lateView extends Ui.WatchFace {
 				centerY = centerY + move;
 				dateY = dateY + move;
 				burnInProtection=2;
+			}
+
+			if (activityR == :timeMinute) {
+				var x = centerX-radius - (sunR-radius)>>1-(dc.getTextWidthInPixels("1", fontSmall)/3).toNumber();	// scale 4 with resolution
+				drawActivity(dc, activityR, centerX<<1-x, centerY, false);
 			}
 		} else {
 		// TODO AOD-X // if(burnInProtection){Sys.println([clockTime.hour, dx,dy]);if(burnInProtection>1){dx = dx == -5 ? dx+10 : dx-10;centerX = centerX + dx;centerY = centerY + dy;burnInProtection=1;}else{dy = dy == -5 ? dy+10 : dy-10;centerX = centerX + dx;centerY = centerY + dy;burnInProtection=2;}} else {
@@ -734,7 +768,7 @@ class lateView extends Ui.WatchFace {
 		} else if(activity == :timeMinute) {
 			var m = clockTime.min; 
 			dc.setColor(color, Gfx.COLOR_TRANSPARENT);
-			dc.drawText(x, y, fontCondensed, m.format("%0.2d"), Gfx.TEXT_JUSTIFY_CENTER | Gfx.TEXT_JUSTIFY_VCENTER);
+			dc.drawText(x-7, y, fontMedium, m.format("%0.2d"), Gfx.TEXT_JUSTIFY_CENTER | Gfx.TEXT_JUSTIFY_VCENTER);
 		} else if(activity != null){
 			//Sys.println("ActivityMonitor");
 			var info = Toy.ActivityMonitor.getInfo();
@@ -850,10 +884,9 @@ class lateView extends Ui.WatchFace {
 					var moonAngle = toAngle(sunset);
 					//Sys.println([sunAngle,moonAngle]);
 					for(var i =5; i<weatherHourly.size();i++){
-						if(weatherHourly[i] <= 1 && (hourAngle+1 < sunAngle || hourAngle>moonAngle) ){	// partly cloudy not shown at night
-							weatherHourly[i] = weatherHourly[i]==0 ? 6 : -1; // clear night for clear sky and dim partly cloudy
-						} else {
-							weatherHourly[i] = weatherHourly[i].toNumber();
+						if(hourAngle+1 < sunAngle || hourAngle>moonAngle){	// dim by half at night
+							var category = weatherHourly[i].toNumber();
+							weatherHourly[i] = category + (weatherHourly[i]-category)/2;
 						}
 						//Sys.println(hourAngle);
 						hourAngle=(hourAngle+1)%24;
@@ -957,6 +990,9 @@ class lateView extends Ui.WatchFace {
 			if(tillStart < -300){
 			  continue;  
 			}
+			if (tillStart >= 28800){ // more than 8 hrs, do not draw
+				continue;
+			}
 			if(tillStart <= 0){
 				eventStart = "now!";
 			} else {
@@ -991,14 +1027,14 @@ class lateView extends Ui.WatchFace {
 					eventStart = tillStart/60 + "m";
 				} else if (tillStart < 28800) {	// 8 hours
 					eventStart = tillStart/3600 + "h" + tillStart%3600 / 60 ;
-				} else {
-					var time = Calendar.info(eventStartTime, Calendar.FORMAT_SHORT);
-					var h = time.hour;
-					if(Sys.getDeviceSettings().is24Hour == false){
-						if(h>11){ h-=12;}
-						else if(0==h){ h=12;}	
-					}
-					eventStart = h.toString() + ":"+ time.min.format("%02d");
+				// } else {
+				// 	var time = Calendar.info(eventStartTime, Calendar.FORMAT_SHORT);
+				// 	var h = time.hour;
+				// 	if(Sys.getDeviceSettings().is24Hour == false){
+				// 		if(h>11){ h-=12;}
+				// 		else if(0==h){ h=12;}	
+				// 	}
+				// 	eventStart = h.toString() + ":"+ time.min.format("%02d");
 				}
 			}
 			eventLocation = height>=280 || events_list[i][4]<0 ? events_list[i][3] : events_list[i][3].substring(0,8); // big screen or emphasized event without date 
@@ -1048,7 +1084,7 @@ class lateView extends Ui.WatchFace {
 		var nowAngle = ((clockTime.min+clockTime.hour*60.0)/ (d24? 4 : 2 )).toNumber(); // 360/1440;
 		var tomorrow = Time.now().value() + (d24 ? 86400 : 43200); // 86400= Calendar.SECONDS_PER_DAY 
 		var fromAngle; var toAngle;
-		var center; 
+		// var center; 
 		/*var h; var idx=2;	// offset 
 		var weatherStart; var weatherEnd;*/
 
@@ -1114,12 +1150,23 @@ class lateView extends Ui.WatchFace {
 			dc.setPenWidth(width);
 			dc.drawArc(centerX, centerY, radius, Gfx.ARC_CLOCKWISE, 450-fromAngle+1, 450-fromAngle);
 			var cal = event[4];
+			
 			if(cal!=null && cal>=0){
-				cal = cal%(calendarColors.size());
-				dc.setColor(calendarColors[cal], backgroundColor);
+				var colors;
+				if (cal % 4 == 0) {
+					colors = eventColors;
+				} else if (cal % 4 == 1) {
+					colors = gcalColors;
+				} else {
+					colors = calendarColors;
+				}
+				if (colors.size() > 0) {
+					cal = (cal>>2)%colors.size();
+					dc.setColor(colors[cal], backgroundColor);
+				}
 			}
 			dc.setPenWidth(width);
-			center = fromAngle>=60 && fromAngle<240 ? centerX-1 : centerX; // correcting the center is not in the center because the display resolution is even
+			// center = fromAngle>=60 && fromAngle<240 ? centerX-1 : centerX; // correcting the center is not in the center because the display resolution is even
 			dc.drawArc(centerX, centerY, radius, Gfx.ARC_CLOCKWISE, 450-fromAngle, 450-toAngle);	// draw event on dial
 
 		}
@@ -1268,52 +1315,56 @@ class lateView extends Ui.WatchFace {
 		}
 		dc.drawText(centerX, centerY-(dc.getFontHeight(fontHours)>>1), fontHours, h.format("%0.1d"), Gfx.TEXT_JUSTIFY_CENTER);
 		if(minutes>0){
-			dc.setColor(color, backgroundColor);
-			dc.setPenWidth(circleWidth);
-			
-			// correct kerning not to have wild gaps between arc and minutes number
-			//	padding values in px:
-			//	1: 		4 
-			//	2-6: 	6 
-			//	7-9: 	8 
-			//	10-11: 	11 
-			//	12-22: 	9 
-			//	23-51: 	11 
-			//	52-59: 	12
-			//	59: start offsetted by 4
-			if(minutes>=10){
-				if(minutes>=52){
-					offset=12;	// 52-59
-					if(minutes==59){
-						gap=4;	
-					} 
-				} else {
-					if(minutes>=12 && minutes<=22){ // 12-22
-						offset=9;
-					} else {
-						offset=11;	// 10-11+23-51
-					}
-				}
+			if(burnInProtection){
+				dc.setColor(color, backgroundColor);
+				dc.setPenWidth(2);
+				dc.drawArc(centerX, centerY, radius-1+circleWidth>>1, Gfx.ARC_CLOCKWISE, 90, 92-minutes*6);
+
+				dc.setColor(color, Gfx.COLOR_TRANSPARENT);
+				dc.setPenWidth(circleWidth);
+				dc.drawArc(centerX, centerY, radius, Gfx.ARC_CLOCKWISE, 95-minutes*6, 90-minutes*6);
 			} else {
-				if(minutes>=7){
-					offset=8;	// 7-9
-				} else {
-					if(minutes==1){
-						offset=4;	// 1
+				dc.setColor(color, backgroundColor);
+				dc.setPenWidth(circleWidth);
+				// correct kerning not to have wild gaps between arc and minutes number
+				//	padding values in px:
+				//	1: 		4 
+				//	2-6: 	6 
+				//	7-9: 	8 
+				//	10-11: 	11 
+				//	12-22: 	9 
+				//	23-51: 	11 
+				//	52-59: 	12
+				//	59: start offsetted by 4
+				if(minutes>=10){
+					if(minutes>=52){
+						offset=12;	// 52-59
+						if(minutes==59){
+							gap=4;	
+						} 
 					} else {
-						offset=6;	// 2-6
+						if(minutes>=12 && minutes<=22){ // 12-22
+							offset=9;
+						} else {
+							offset=11;	// 10-11+23-51
+						}
+					}
+				} else {
+					if(minutes>=7){
+						offset=8;	// 7-9
+					} else {
+						if(minutes==1){
+							offset=4;	// 1
+						} else {
+							offset=6;	// 2-6
+						}
 					}
 				}
+				//dc.drawArc(centerX, centerY, radius, Gfx.ARC_CLOCKWISE, 90-gap, 90-minutes*6 + offset);
+				//Sys.println([90-gap, 90-minutes*6 + offset]);
+				dc.drawArc(centerX, centerY, radius, Gfx.ARC_CLOCKWISE, 90-gap, 90-minutes*6 + offset);
+				//dc.drawArc(centerX, centerY, radius, Gfx.ARC_CLOCKWISE, 90, 270);
 			}
-			if(burnInProtection){ 
-				offset=0;
-				gap=0;
-				
-			}
-			//dc.drawArc(centerX, centerY, radius, Gfx.ARC_CLOCKWISE, 90-gap, 90-minutes*6 + offset);
-			//Sys.println([90-gap, 90-minutes*6 + offset]);
-			dc.drawArc(centerX, centerY, radius, Gfx.ARC_CLOCKWISE, 90-gap, 90-minutes*6 + offset);
-			//dc.drawArc(centerX, centerY, radius, Gfx.ARC_CLOCKWISE, 90, 270);
 		}
 	}
 
@@ -1366,7 +1417,28 @@ class lateView extends Ui.WatchFace {
 		return h;
 	}
 
-var dbg = null;
+	var dbg = null;
+					
+	function formatNumber(num, precision) {
+		if (num == 0) {
+			return "0";
+		}
+
+		var str = num.format("%1." + precision + "f");
+		var strlen = str.length();
+		var strch = str.toCharArray();
+
+		var trailingZeros = 0;
+		for (trailingZeros = 0; trailingZeros < strlen - 1; trailingZeros++) {
+			var ch = strch[strlen - trailingZeros - 1];
+			if (ch != '0' && ch != '.') {
+				break;
+			}
+		}
+
+		return str.substring(0, strlen - trailingZeros);
+	}
+
 	(:data)
 	function drawWeather(dc){  //Sys.println("drawWeather: " + Sys.getSystemStats().freeMemory+ " " + weatherHourly); 
 		var h = trimPastHoursInWeatherHourly();
@@ -1383,29 +1455,85 @@ var dbg = null;
 
 			// DEBUG if(dbg != clockTime.min ) {dbg = clockTime.min;var debug = new [weatherHourly.size()]; var hh = h;for(var ii=0; ii<weatherHourly.size() && ii<limit; ii++, hh++){	var cc = weatherHourly[ii]; if(ii<5){debug[ii]=weatherHourly[ii];}						else {debug[ii]= (cc>=0 && cc < meteoColors.size()) ? meteoColors[cc] : null;}			}System.println(["arcs", debug]);}
 
-			dc.setPenWidth(height>=390 ? 8 : 5);
-			var color; var correction;
+			var prevColor = -1; var prevCat = -1;
 			//weatherHourly[10]=9;weatherHourly[12]=13;weatherHourly[13]=15;weatherHourly[15]=20;weatherHourly[16]=21; // testing colors
 
 			// draw weather arcs
-
-
 			for(var i=5; i<weatherHourly.size() && i<limit; i++, h++){
-				color = weatherHourly[i];
-				if(color>=0 && color < meteoColors.size()){
-					color = meteoColors[color];
-					h = h%hours;
-					if(hours==12){
-						correction = h>=2 && h<8 ? -1 : 0; // correcting the center is not in the center because the display resolution is even
-					} else {
-						correction = h>=4 && h<16 ? -1 : 0; // correcting the center is not in the center because the display resolution is even
-					}
-					dc.setColor(color, Gfx.COLOR_TRANSPARENT);
-					//dc.drawArc(center, center, centerY-1, Gfx.ARC_CLOCKWISE, 15, 5);return;
-					//Sys.println([h, 450-h*step, 450-(h+1)*step]);
-					dc.drawArc(centerX+correction, centerY+correction, centerY-1, Gfx.ARC_CLOCKWISE, 450-h*step, 450-(h+1)*step);
-
+				var category; var offset;
+				var color; var colorLow; var colorHigh;
+				var correction; var cx; var cy;
+				var startAngle; var endAngle;
+				category = weatherHourly[i].toNumber();
+				if (category == 0) { // clouds
+					colorLow = 0xd5dae2;
+					colorHigh = 0x878f9a;
+				} else if (category == 2) { // rain
+					colorLow = 0x80a5d6;
+					colorHigh = 0x4a80c7;
+				} else if (category == 4) { // snow
+					colorLow = 0xaba4db;
+					colorHigh = 0x8c82ce;
+				} else if (category == 6) { // sleet
+					colorLow = 0x96a5d9;
+					colorHigh = 0x6b81cb;
+				} else {
+					prevColor = -1;
+					prevCat = -1;
+					continue;
 				}
+				offset = Math.round((weatherHourly[i] - category)*4)/4.0;
+				// if (category == 0) { category = 4; colorLow = 0x7799AA; colorHigh = 0xFFFFFF; }
+				color = blendColors(colorLow, colorHigh, offset);
+				h = h%hours;
+				if(hours==12){
+					correction = h>=2 && h<8 ? -1 : 0; // correcting the center is not in the center because the display resolution is even
+				} else {
+					correction = h>=4 && h<16 ? -1 : 0; // correcting the center is not in the center because the display resolution is even
+				}
+				cx = centerX + correction;
+				cy = centerY + correction;
+				startAngle = 450-h*step;
+				endAngle = 450-(h+1)*step;
+				dc.setColor(color, Gfx.COLOR_TRANSPARENT);
+				if (category == 0) {
+					dc.setPenWidth(2);
+				} else {
+					dc.setPenWidth(5);
+				}
+				//dc.drawArc(center, center, centerY-1, Gfx.ARC_CLOCKWISE, 15, 5);return;
+				//Sys.println([h, 450-h*step, 450-(h+1)*step]);
+				if (category == 0) {
+					dc.drawArc(cx, cy, centerY, Gfx.ARC_CLOCKWISE, startAngle, endAngle);
+					dc.drawArc(cx, cy, centerY-3, Gfx.ARC_CLOCKWISE, startAngle, endAngle);
+				} else {
+					dc.drawArc(cx, cy, centerY-1, Gfx.ARC_CLOCKWISE, startAngle, endAngle);
+				}
+				if ((category == 0) == (prevCat == 0) && prevColor != -1) {
+					startAngle += 3;
+
+					if (category == 0) { // clean up the middle for cloudy weather
+						dc.setColor(backgroundColor, Gfx.COLOR_TRANSPARENT);
+						dc.drawArc(cx, cy, centerY-2, Gfx.ARC_CLOCKWISE, startAngle, startAngle-6);
+						dc.setPenWidth(2);
+					}
+
+					var prevTransColor = prevColor;
+					for (var t = 1; t <= 6; t += 1) {
+						var transColor = blendColors(prevColor, color, t/7.0);
+						dc.setColor(transColor, prevTransColor);
+						if (category == 0) {
+							dc.drawArc(cx, cy, centerY, Gfx.ARC_CLOCKWISE, startAngle, startAngle-1);
+							dc.drawArc(cx, cy, centerY-3, Gfx.ARC_CLOCKWISE, startAngle, startAngle-1);
+						} else {
+							dc.drawArc(cx, cy, centerY-1, Gfx.ARC_CLOCKWISE, startAngle, startAngle-1);
+						}
+						prevTransColor = transColor;
+						startAngle--;
+					}
+				}
+				prevColor = color;
+				prevCat = category;
 			}
 			// write temperature
 			if(weatherHourly.size()>=5){ 
@@ -1515,14 +1643,18 @@ var dbg = null;
 				//dc.drawText(x, y, fontCondensed, Math.round(weatherHourly[1]).toString()+"°", Gfx.TEXT_JUSTIFY_CENTER);	
 				// precipitation
 				var mm = weatherHourly[4];
-				if(mm != null && mm>0.5){
-					x = centerX-centerX>>1-6;
+				if(mm != null && mm>0.01){
+					mm = formatNumber(mm, 2);
+					x = centerX-centerX>>1;
 					//y -= (Gfx.getFontHeight(fontCondensed)*.2).toNumber();
-					line = Math.round(0.55*Gfx.getFontHeight(fontCondensed)).toNumber();
+					// quoteWidth
+					// numWidth
+					// totalWidth = quoteWidth + numWidth
+					line = (dc.getTextWidthInPixels(mm + "\"", fontCondensed))>>1;
 					dc.setColor(dimmedColor, Gfx.COLOR_TRANSPARENT);
-					dc.drawText(x-2, y+line, fontCondensed, "mm", Gfx.TEXT_JUSTIFY_CENTER);	
+					dc.drawText(x+line, y, fontCondensed, "\"", Gfx.TEXT_JUSTIFY_RIGHT);	
 					dc.setColor(activityColor, Gfx.COLOR_TRANSPARENT);
-					dc.drawText(x, y, fontCondensed, mm.format("%1.0f"), Gfx.TEXT_JUSTIFY_CENTER);	
+					dc.drawText(x-line, y, fontCondensed, mm, Gfx.TEXT_JUSTIFY_LEFT);	
 				}
 				//dc.setPenWidth(circleWidth);dc.drawArc(centerX, centerY, radius, Gfx.ARC_CLOCKWISE, 90, 90-350); // test overlapping
 			}

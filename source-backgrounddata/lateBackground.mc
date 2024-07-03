@@ -12,6 +12,7 @@ class lateBackground extends Toybox.System.ServiceDelegate {
 	var access_token;
 	var refresh_token;
 	var current_index = -1;
+	var current_color = -1;
 	var calendar_ids;
 	var events_list = [];
 	var primary_calendar = false;
@@ -19,8 +20,14 @@ class lateBackground extends Toybox.System.ServiceDelegate {
 	//var maxResults = Toybox.Application has :Storage ? 6 : 5;
 	var maxResults = 6;
 	var subscription_id;
+	var Ggl_id = "CLIENT_ID";
+	var Ggl_secret = "CLIENT_SECRET";
+	var weatherApi = "http://localhost:3333/";
+	// var weatherApi = "https://almost-late-middleware-staging.herokuapp.com/api/";
+	// var weatherApi = "https://almost-late-middleware.herokuapp.com/api/";
+	// var weatherApi = "https://subscription.sl8.ch/api/";
 
-	function initialize() { ///Sys.println(Sys.getSystemStats().freeMemory + " on init");
+	function initialize() { Sys.println(Sys.getSystemStats().freeMemory + " on init");
 		Sys.ServiceDelegate.initialize();
 		//Communications.registerForOAuthMessages(method(:onPurchase));
 		app = App.getApp();
@@ -28,8 +35,8 @@ class lateBackground extends Toybox.System.ServiceDelegate {
 	
 	function onTemporalEvent() {	//+*/var t = Gregorian.info(Time.now(), Gregorian.FORMAT_SHORT); Sys.println( t.hour +":" +t.min + ": " + Sys.getSystemStats().freeMemory + " onTemporalEvent, last: "+ app.getProperty("last") );
 		app = App.getApp();
-		//Sys.println(["onTemporalEvent " , app.getProperty("user_code"),app.getProperty("refresh_token")]);
-		//+*/Sys.println("last: "+app.getProperty("last")+(app.getProperty("weather")?" weather ":"")+(app.getProperty("activity")==6 ?" calendar":""));
+		Sys.println(["onTemporalEvent " , app.getProperty("user_code"),app.getProperty("refresh_token")]);
+		Sys.println("last: "+app.getProperty("last")+(app.getProperty("weather")?" weather ":"")+(app.getProperty("activity")==6 ?" calendar":""));
 		//+*/Sys.println([app.getProperty("user_code"), app.getProperty("refresh_token"),app.getProperty("device_code")]);
 		if(app.getProperty("weather")==true && (app.getProperty("last")=='c' || app.getProperty("activity")!=6)){	// alternating between loading calendar and weather by what lateApp.onBackgroundData saved was loaded before
 			getWeatherForecast();
@@ -46,7 +53,7 @@ class lateBackground extends Toybox.System.ServiceDelegate {
 
 	function getOAuthUserCode(){	///Sys.println(Sys.getSystemStats().freeMemory + " getOAuthUserCode"); Sys.println("getOAuthUserCode");
 		Communications.makeWebRequest("https://accounts.google.com/o/oauth2/device/code", 
-			{"client_id"=>app.getProperty("Ggl_id"), "scope"=>"https://www.googleapis.com/auth/calendar.readonly"}, {:method => Communications.HTTP_REQUEST_METHOD_POST}, 
+			{"client_id"=>Ggl_id, "scope"=>"https://www.googleapis.com/auth/calendar.readonly"}, {:method => Communications.HTTP_REQUEST_METHOD_POST}, 
 			method(:onOAuthUserCode)); 
 	}
 
@@ -62,7 +69,7 @@ class lateBackground extends Toybox.System.ServiceDelegate {
 	}
 
 	function getTokensAndData(){  ///Sys.println(Sys.getSystemStats().freeMemory + " on getTokensAndData");  // device_code can tell if the user granted access 
-		var params = {"client_secret"=>app.getProperty("Ggl_secret"), "client_id"=>app.getProperty("Ggl_id")};
+		var params = {"client_secret"=>Ggl_secret, "client_id"=>Ggl_id};
 		if (app.getProperty("refresh_token") != null) { 
 			refresh_token = app.getProperty("refresh_token");
 			params.put("refresh_token",refresh_token);
@@ -162,8 +169,10 @@ class lateBackground extends Toybox.System.ServiceDelegate {
 		
 	function getNextCalendarEvents() {
 		current_index++;
+		current_color = -1;
+		Sys.println("get next: " + current_index);
 		if (current_index<calendar_ids.size()) { ///Sys.println(calendar_ids[current_index]);
-			getEvents(calendar_ids[current_index]);
+			getCalInfo(calendar_ids[current_index]);
 			return true;
 		} else {
 			return false;
@@ -172,6 +181,21 @@ class lateBackground extends Toybox.System.ServiceDelegate {
 
 // DEBUG MEM */var m=Sys.getSystemStats().freeMemory;function mem(label){Sys.println([Sys.getSystemStats().freeMemory, Sys.getSystemStats().freeMemory-m, label]); m=Sys.getSystemStats().freeMemory;}
 // DEBUG MEM BALAST //var balast = new [460];
+
+	function getCalInfo(calendar_id) {
+		Communications.makeWebRequest("https://www.googleapis.com/calendar/v3/users/me/calendarList/" + calendar_id, {"fields"=>"colorId"}, 
+			{:method=>Communications.HTTP_REQUEST_METHOD_GET, 
+			:headers=>{ "Authorization"=>"Bearer " + access_token}},
+			method(:onCalInfo));
+	}
+
+	function onCalInfo(responseCode, data) {
+		if(responseCode == 200) {
+			current_color = data.get("colorId").toNumber() - 1;
+		}
+		Sys.println("get info: " + responseCode);
+		getEvents(calendar_ids[current_index]);
+	}
 
 	function getEvents(calendar_id) { 	//+mem+*/Sys.println(Sys.getSystemStats().freeMemory + " getCalendarData "+ calendar_id);
 // DEBUG MEM */mem("get "+maxResults +" events from " + calendar_id/*+" with balast "+balast.size()*/);
@@ -198,7 +222,7 @@ class lateBackground extends Toybox.System.ServiceDelegate {
 			//+"timeMin="+dateStart+"&timeMax="+dateEnd+"&maxResults="+maxResults.toString()+"&fields=items(summary,location,start/dateTime,end/dateTime)&orderBy=startTime", null, 
 		
 		Communications.makeWebRequest("https://www.googleapis.com/calendar/v3/calendars/" + calendar_id + "/events", {		
-			"maxResults"=>maxResults.toString(), "orderBy"=>"startTime", "singleEvents"=>"true", "timeMin"=>dateStart, "timeMax"=>dateEnd, "fields"=>"items(summary,location,start/dateTime,end/dateTime)"}, 
+			"maxResults"=>maxResults.toString(), "orderBy"=>"startTime", "singleEvents"=>"true", "timeMin"=>dateStart, "timeMax"=>dateEnd, "fields"=>"items(summary,location,start/dateTime,end/dateTime,colorId)"}, 
 
 			{:method=>Communications.HTTP_REQUEST_METHOD_GET, 
 			:headers=>{ "Authorization"=>"Bearer " + access_token }},
@@ -224,6 +248,7 @@ class lateBackground extends Toybox.System.ServiceDelegate {
 			//var eventsToSafelySend = primary_calendar ? 7 : 8;
 			//var limit = Toybox.Application has :Storage ? 12 : 9;
 			var limit = 10;
+			var evts = 0;
 //Sys.println(data.size());
 			for (var i = 0; i < data.size() && events_list.size() < limit; i++) { // limit events not to get out of memory
 				//+mem+*/Sys.println(Sys.getSystemStats().freeMemory+" "+i /*+" "+event["start"]["dateTime"]*/);
@@ -232,12 +257,23 @@ class lateBackground extends Toybox.System.ServiceDelegate {
 				data[i] = null;
 				if(event["start"]){ // skip day events that have only "summary"
 					try {
+						var colorNum;
+						if (event.get("colorId") && event.get("colorId").toNumber() != null) {
+							colorNum = event.get("colorId").toNumber() - 1;
+							colorNum = colorNum << 2;
+						} else if (current_color >= 0) {
+							colorNum = current_color;
+							colorNum = colorNum << 2 + 1;
+						} else {
+							colorNum = current_index;
+							colorNum = colorNum << 2 + 2;
+						}
 						var eventTrim = [
 							(event.get("start").get("dateTime")),
 							(event.get("end").get("dateTime")), 
-							i<= 3 ? (event.get("summary") ? event.get("summary").substring(0,23) : "") : "",
-							i<= 3 ? event.get("location") : null,
-							current_index
+							evts <= 3 ? (event.get("summary") ? event.get("summary").substring(0,23) : "") : "",
+							evts <= 3 ? event.get("location") : null,
+							colorNum,
 						];
 						if(eventTrim[3]){  // trimming and event to fit the screen nicely
 							eventTrim[3] = eventTrim[3].substring(0,10);
@@ -246,7 +282,10 @@ class lateBackground extends Toybox.System.ServiceDelegate {
 								eventTrim[3] = eventTrim[3].substring(0,split);
 							}
 						}
+						Sys.println(event);
+						Sys.println(eventTrim);
 						events_list.add(eventTrim);
+						evts += 1;
 						/*if(Sys.getSystemStats().freeMemory<4800){
 							exitWithDataAndToken();
 						}*/
@@ -326,7 +365,7 @@ class lateBackground extends Toybox.System.ServiceDelegate {
 		if(pos == null){
 			pos = app.getProperty("location"); // load the last location to fix a Fenix 5 bug that is loosing the location often
 		}
-		//+*/Sys.println("getWeatherForecast: "+pos);
+		Sys.println("getWeatherForecast: "+pos);
 		if(pos == null){
 			Background.exit({"err"=>-204});
 			return;
@@ -337,10 +376,12 @@ class lateBackground extends Toybox.System.ServiceDelegate {
 		var hours = (app.getProperty("d24") == 1 ? 24:12);
 		//+//System.println(Sys.getSystemStats().freeMemory + " getWeatherForecast paid by: "+subscription_id);
 		//Sys.println("https://almost-late-middleware.herokuapp.com/api/"+pos[0].toFloat()+"/"+pos[1].toFloat());
+		if(subscription_id == null){
+			getSubscriptionId();
+		}
+		Sys.println("Get weather "+subscription_id);
 		if(subscription_id instanceof String && subscription_id.length()>0){
-			// STAGING */Communications.makeWebRequest("https://almost-late-middleware-staging.herokuapp.com/api/"+pos[0].toFloat()+"/"+pos[1].toFloat(), 
-			/* OLD PROD */Communications.makeWebRequest("https://almost-late-middleware.herokuapp.com/api/"+pos[0].toFloat()+"/"+pos[1].toFloat(), 
-			// NEW PROD not working yet */Communications.makeWebRequest("https://subscription.sl8.ch/api/"+pos[0].toFloat()+"/"+pos[1].toFloat(), 
+			Communications.makeWebRequest(weatherApi+pos[0].toFloat()+"/"+pos[1].toFloat(), 
 				{"unit"=>(app.getProperty("units") ? "c":"f"), 
 					"service"=> app.getProperty("forecast") ? "clearoutside":"yrno",
 					"period_w"=>(hours+1),
@@ -361,7 +402,7 @@ class lateBackground extends Toybox.System.ServiceDelegate {
 		}
 	}
 
-	function onWeatherForecast(responseCode, data){		//*/Sys.println(Sys.getSystemStats().freeMemory + " onWeatherForecast: "+responseCode ); //Sys.println(data instanceof Array ? data.slice(0, 8)+"..." : data);
+	function onWeatherForecast(responseCode, data){		Sys.println(Sys.getSystemStats().freeMemory + " onWeatherForecast: "+responseCode ); Sys.println(data instanceof Array ? data.slice(0, 8)+"..." : data);
 		if (responseCode==200 ) {
 			try { 
 				//Sys.println(data);
@@ -390,9 +431,11 @@ class lateBackground extends Toybox.System.ServiceDelegate {
 				subscription_id = false;
 				getSubscriptionId();
 				return;
-			} 
+			}
 			if(responseCode==402 || responseCode==403 ){ 
-				buySubscription(responseCode);	// response code will indicate to show expiration page instead of subsription
+				// buySubscription(responseCode);	// response code will indicate to show expiration page instead of subsription
+				subscription_id = false;
+				getSubscriptionId();
 				return; // there will be a second call to exit
 			}
 			if(!(data instanceof Toybox.Lang.Dictionary)){
@@ -405,69 +448,74 @@ class lateBackground extends Toybox.System.ServiceDelegate {
 		Background.exit(data);
 	}
 
+	// function getSubscriptionId(){	//+*/System.println("getSubscriptionId");
+	// 	//Communications.makeWebRequest("https://almost-late-middleware-staging.herokuapp.com/auth/code",
+	// 	Communications.makeWebRequest("https://almost-late-middleware.herokuapp.com/auth/code",
+	// 		{"client_id"=>app.getProperty("Weather_id")},  
+	// 			{	:method=>Communications.HTTP_REQUEST_METHOD_GET, 
+	// 				:headers=> {"X-Device-Identifier" => Sys.getDeviceSettings().uniqueIdentifier}
+	// 				},
+	// 		method(:onSubscriptionId));
+	// }
+
 	function getSubscriptionId(){	//+*/System.println("getSubscriptionId");
-		//Communications.makeWebRequest("https://almost-late-middleware-staging.herokuapp.com/auth/code",
-		Communications.makeWebRequest("https://almost-late-middleware.herokuapp.com/auth/code",
-			{"client_id"=>app.getProperty("Weather_id")},  
-				{	:method=>Communications.HTTP_REQUEST_METHOD_GET, 
-					:headers=> {"X-Device-Identifier" => Sys.getDeviceSettings().uniqueIdentifier}
-					},
-			method(:onSubscriptionId));
+		subscription_id = "abc123";
+		Background.exit({"subscription_id"=>subscription_id});
 	}
 	
-	function buySubscription(responseCode){	//+*/System.println("buySubscription "+responseCode);
-		var data = {"device_code"=>subscription_id};
-		if(responseCode==403){ // especially 401: handle as expiration?
-			data.put("expired", "1");
-		}
-		data.put("r", Math.rand().toString());
-		//Sys.println(["https://almost-late-middleware.herokuapp.com/" + (responseCode==407 ? "waitlist" : "checkout/pay"), data]);
-		//Communications.openWebPage("https://almost-late-middleware-staging.herokuapp.com/" + (responseCode==407 ? "waitlist" : "checkout/pay"), 
-		Communications.openWebPage("https://subscription.sl8.ch/" + (responseCode==407 ? "waitlist" : "checkout/pay"), 
-			data, 
-			{	:method=>Communications.HTTP_REQUEST_METHOD_GET, 
-				:headers=> {"X-Device-Identifier" => Sys.getDeviceSettings().uniqueIdentifier}
-				}); 
-		data = {"subscription_id"=>subscription_id};
-		if(responseCode!=200){
-			data.put("err", responseCode);
-		}
-		Background.exit(data);
-	}
+	// function buySubscription(responseCode){	//+*/System.println("buySubscription "+responseCode);
+	// 	var data = {"device_code"=>subscription_id};
+	// 	if(responseCode==403){ // especially 401: handle as expiration?
+	// 		data.put("expired", "1");
+	// 	}
+	// 	data.put("r", Math.rand().toString());
+	// 	//Sys.println(["https://almost-late-middleware.herokuapp.com/" + (responseCode==407 ? "waitlist" : "checkout/pay"), data]);
+	// 	//Communications.openWebPage("https://almost-late-middleware-staging.herokuapp.com/" + (responseCode==407 ? "waitlist" : "checkout/pay"), 
+	// 	Communications.openWebPage("https://subscription.sl8.ch/" + (responseCode==407 ? "waitlist" : "checkout/pay"), 
+	// 		data, 
+	// 		{	:method=>Communications.HTTP_REQUEST_METHOD_GET, 
+	// 			:headers=> {"X-Device-Identifier" => Sys.getDeviceSettings().uniqueIdentifier}
+	// 			}); 
+	// 	data = {"subscription_id"=>subscription_id};
+	// 	if(responseCode!=200){
+	// 		data.put("err", responseCode);
+	// 	}
+	// 	Background.exit(data);
+	// }
 
-	function onSubscriptionId(responseCode, data) {		//+*/Sys.println("onPurchase: " + responseCode +" "+data);
-		if (responseCode == 200) {
-			//data = data.get("items");
-			if(data instanceof Toybox.Lang.Dictionary && data.hasKey("device_code") && data["device_code"] instanceof String ){ 
-				//Sys.System.println("have it: "+subscription_id);
-				if(subscription_id == false){	// indicating to the subscriptino page that the subscription expired
-					responseCode = 403;
-				} 
-				subscription_id = data["device_code"];
-				if(data["restored"] != true){
-					buySubscription(responseCode); 
-					return;
-				}
-				data.put("subscription_id", subscription_id); 
+	// function onSubscriptionId(responseCode, data) {		//+*/Sys.println("onPurchase: " + responseCode +" "+data);
+	// 	if (responseCode == 200) {
+	// 		//data = data.get("items");
+	// 		if(data instanceof Toybox.Lang.Dictionary && data.hasKey("device_code") && data["device_code"] instanceof String ){ 
+	// 			//Sys.System.println("have it: "+subscription_id);
+	// 			if(subscription_id == false){	// indicating to the subscriptino page that the subscription expired
+	// 				responseCode = 403;
+	// 			} 
+	// 			subscription_id = data["device_code"];
+	// 			if(data["restored"] != true){
+	// 				buySubscription(responseCode); 
+	// 				return;
+	// 			}
+	// 			data.put("subscription_id", subscription_id); 
 				
-			} 
-		} else {
-			// 400 TODO wrong client_id: {msg=>Incorrect device identification, code=>MISSING_ID}
-			// 404: no internet
-			// 405: device code expired
-			// 407: No Quota
-			// 429 throttling with msBeforeNext to wait
-			// 500: Internal server error
-			if(responseCode == 407 || responseCode == 405){
-				buySubscription(responseCode); 
-				return;
-			}
-			if(!(data instanceof Toybox.Lang.Dictionary)){
-				data = {};
-			}
-			data.put("subscription_id", subscription_id);
-			data.put("err", responseCode);
-		}
-		Background.exit(data);
-	}
+	// 		} 
+	// 	} else {
+	// 		// 400 TODO wrong client_id: {msg=>Incorrect device identification, code=>MISSING_ID}
+	// 		// 404: no internet
+	// 		// 405: device code expired
+	// 		// 407: No Quota
+	// 		// 429 throttling with msBeforeNext to wait
+	// 		// 500: Internal server error
+	// 		if(responseCode == 407 || responseCode == 405){
+	// 			buySubscription(responseCode); 
+	// 			return;
+	// 		}
+	// 		if(!(data instanceof Toybox.Lang.Dictionary)){
+	// 			data = {};
+	// 		}
+	// 		data.put("subscription_id", subscription_id);
+	// 		data.put("err", responseCode);
+	// 	}
+	// 	Background.exit(data);
+	// }
 }
