@@ -20,12 +20,6 @@ class lateBackground extends Toybox.System.ServiceDelegate {
 	//var maxResults = Toybox.Application has :Storage ? 6 : 5;
 	var maxResults = 6;
 	var subscription_id;
-	var Ggl_id = "CLIENT_ID";
-	var Ggl_secret = "CLIENT_SECRET";
-	var weatherApi = "http://localhost:3333/";
-	// var weatherApi = "https://almost-late-middleware-staging.herokuapp.com/api/";
-	// var weatherApi = "https://almost-late-middleware.herokuapp.com/api/";
-	// var weatherApi = "https://subscription.sl8.ch/api/";
 
 	function initialize() { Sys.println(Sys.getSystemStats().freeMemory + " on init");
 		Sys.ServiceDelegate.initialize();
@@ -39,6 +33,7 @@ class lateBackground extends Toybox.System.ServiceDelegate {
 		Sys.println("last: "+app.getProperty("last")+(app.getProperty("weather")?" weather ":"")+(app.getProperty("activity")==6 ?" calendar":""));
 		//+*/Sys.println([app.getProperty("user_code"), app.getProperty("refresh_token"),app.getProperty("device_code")]);
 		if(app.getProperty("weather")==true && (app.getProperty("last")=='c' || app.getProperty("activity")!=6)){	// alternating between loading calendar and weather by what lateApp.onBackgroundData saved was loaded before
+			Sys.println(weatherApi);
 			getWeatherForecast();
 		} else {
 			if(Sys.getDeviceSettings().phoneConnected==true){

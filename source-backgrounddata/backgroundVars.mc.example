@@ -1,0 +1,7 @@
+// Fill in the below values and rename to backgroundVars.mc
+var Ggl_id = "CLIENT_ID";
+var Ggl_secret = "CLIENT_SECRET";
+var weatherApi = "API_URL";
+// var weatherApi = "https://almost-late-middleware-staging.herokuapp.com/api/";
+// var weatherApi = "https://almost-late-middleware.herokuapp.com/api/";
+// var weatherApi = "https://subscription.sl8.ch/api/";
