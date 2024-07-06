@@ -1419,8 +1419,8 @@ class lateView extends Ui.WatchFace {
 
 				if (circleWidth < 5) {
 					dc.setColor(color, Gfx.COLOR_TRANSPARENT);
-					dc.setPenWidth(circleWidth<<1);
-					dc.drawArc(centerX, centerY, radius - circleWidth, Gfx.ARC_CLOCKWISE, 95-minutes*6, 90-minutes*6);
+					dc.setPenWidth(10);
+					dc.drawArc(centerX, centerY, radius - 4, Gfx.ARC_CLOCKWISE, 95-minutes*6, 90-minutes*6);
 				}
 			}
 		}
