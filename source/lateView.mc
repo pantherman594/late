@@ -18,6 +18,7 @@ using Toybox.System as Sys;
 using Toybox.Lang as Lang;
 using Toybox.Time as Time;
 using Toybox.Time.Gregorian as Calendar;
+using Toybox.SensorHistory;
 using Toybox as Toy;
 using Toybox.Math as Math;
 using Toybox.Application as App;
@@ -236,7 +237,7 @@ class lateView extends Ui.WatchFace {
 		//rain = app.getProperty("rain");
 		dateForm = app.getProperty("dateForm");
 		
-		var activities = [null, :steps, :calories, :activeMinutesDay, :activeMinutesWeek, :floorsClimbed, :calendar, :timeHour, :timeMinute];
+		var activities = [null, :steps, :calories, :activeMinutesDay, :activeMinutesWeek, :floorsClimbed, :calendar, :timeHour, :timeMinute, :multi];
 		activity = activities[app.getProperty("activity")];
 		activityL = activities[app.getProperty("activityL")];
 		activityR = activities[app.getProperty("activityR")];
@@ -750,7 +751,7 @@ class lateView extends Ui.WatchFace {
 		}
 		drawTime(dc, activityR != :timeMinute);
 		if(activity != null || message){
-				if(activity == :calendar || message){
+				if(activity == :calendar || activity == null){
 					drawEvent(dc);
 				} else { 
 					if(burnInProtection==0){
@@ -802,6 +803,20 @@ class lateView extends Ui.WatchFace {
 	function floorsClimbed(info){
 		return info.floorsClimbed.toFloat()/info.floorsClimbedGoal;
 	}
+	function bodyBattery(info) {
+		if (!(Toybox has :SensorHistory)) {
+			return -1;
+		}
+		if (!(Toybox.SensorHistory has :getBodyBatteryHistory)) {
+			return -1;
+		}
+		var iter = Toybox.SensorHistory.getBodyBatteryHistory({:period => 1});
+		var sample = iter.next();
+		if (sample == null) {
+			return 3;
+		}
+		return sample.data.toFloat()/100;
+	}
 
 	function drawActivity(dc, activity, x, y, horizontal){
 		if(activity == :timeHour) {
@@ -817,6 +832,80 @@ class lateView extends Ui.WatchFace {
 			var m = clockTime.min; 
 			dc.setColor(color, Gfx.COLOR_TRANSPARENT);
 			dc.drawText(x-7, y, fontMedium, m.format("%0.2d"), Gfx.TEXT_JUSTIFY_CENTER | Gfx.TEXT_JUSTIFY_VCENTER);
+		} else if(activity == :multi) {
+			var offset;
+
+			if (horizontal) {
+				offset = 90;
+			} else {
+				if (x < centerX) {
+					offset = 0;
+				} else {
+					offset = 180;
+				}
+			}
+
+			var info = Toy.ActivityMonitor.getInfo();
+			var activities = [:bodyBattery, :steps, :activeMinutesDay];
+			var arcR = radius + 20;
+			var yFloor = Math.round(radius*Math.sin(Math.PI*210/180));
+			var inverse = false;
+			dc.setPenWidth(2);
+			for (var i = 0; i < activities.size(); i += 1) {
+				var data = method(activities[i]).invoke(info);
+				if (data < 0) {
+					continue;
+				}
+
+				var angMax = 180 - 180*Math.asin(yFloor/arcR)/Math.PI;
+				var angRange = (angMax-180)*2;
+				var angMin = Math.round(angMax - angRange);
+				var normData = data - data.toNumber();
+				var direction = inverse ? Gfx.ARC_COUNTER_CLOCKWISE : Gfx.ARC_CLOCKWISE;
+				if (inverse) {
+					var temp = angMax;
+					angMax = angMin;
+					angMin = temp;
+					angRange *= -1;
+				}
+				var arcEnd = Math.round(angMax-normData*angRange);
+
+				dc.setColor(activityColor, Gfx.COLOR_TRANSPARENT);	
+				dc.setColor(data<2 ? activityColor : dateColor, Gfx.COLOR_TRANSPARENT);	
+
+				var draw;
+				if(data>=1){	
+					if(data<3){
+						var bgStart;
+						if (!inverse) {
+							bgStart = arcEnd-2;
+							draw = bgStart > angMin;
+						} else {
+							bgStart = arcEnd+2;
+							draw = bgStart < angMin;
+						}
+
+						if (draw) {
+							dc.drawArc(centerX, centerY, arcR, direction, offset + bgStart, offset + angMin); 
+						}
+						dc.setColor( data<2 ? dateColor : color, Gfx.COLOR_TRANSPARENT);
+					} else {
+						dc.setColor( color, Gfx.COLOR_TRANSPARENT);
+						dc.drawArc(centerX, centerY, arcR, direction, offset + angMax, offset + angMin); 
+					}
+				}
+				if (!inverse) {
+					draw = Math.round(angMax) > arcEnd;
+				} else {
+					draw = Math.round(angMax) < arcEnd;
+				}
+				if (draw) {
+					dc.drawArc(centerX, centerY, arcR, direction, offset + Math.round(angMax), offset + arcEnd); 
+				}
+
+				arcR += 7;
+				inverse = !inverse;
+			}
 		} else if(activity != null){
 			//Sys.println("ActivityMonitor");
 			var info = Toy.ActivityMonitor.getInfo();

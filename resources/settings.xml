@@ -31,6 +31,7 @@
 			<listEntry value="0">@Strings.DnD</listEntry>
 			<listEntry value="1">@Strings.Steps</listEntry>
 			<listEntry value="2">@Strings.Calories</listEntry>
+			<listEntry value="9">@Strings.Multi</listEntry>
 		</settingConfig>
 	</setting>
 	<setting propertyKey="@Properties.activityL" title="@Strings.ActivityTitleL">
@@ -38,6 +39,7 @@
 			<listEntry value="0">@Strings.DnD</listEntry>
 			<listEntry value="1">@Strings.Steps</listEntry>
 			<listEntry value="2">@Strings.Calories</listEntry>
+			<listEntry value="9">@Strings.Multi</listEntry>
 		</settingConfig>
 	</setting>
 	<setting propertyKey="@Properties.activityR" title="@Strings.ActivityTitleR">
@@ -46,6 +48,7 @@
 			<listEntry value="1">@Strings.Steps</listEntry>
 			<listEntry value="2">@Strings.Calories</listEntry>
 			<listEntry value="8">@Strings.Minutes</listEntry>
+			<listEntry value="9">@Strings.Multi</listEntry>
 		</settingConfig>
 	</setting>
 	<setting propertyKey="@Properties.percents" title="@Strings.showPercents">

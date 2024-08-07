@@ -21,6 +21,7 @@
 			<listEntry value="6">@Strings.Calendar</listEntry>
 			<listEntry value="7">@Strings.Hours</listEntry>
 			<listEntry value="8">@Strings.Minutes</listEntry>
+			<listEntry value="9">@Strings.Multi</listEntry>
 		</settingConfig>
 	</setting>
 	<setting propertyKey="@Properties.calendar_ids" title="@Strings.AddCalendars" prompt="@Strings.CalendarsPrompt" helpUrl="https://calendar.google.com/calendar/r/settings">

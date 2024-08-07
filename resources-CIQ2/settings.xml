@@ -7,6 +7,7 @@
 			<listEntry value="3">@Strings.ActiveMinutesDay</listEntry>
 			<listEntry value="4">@Strings.ActiveMinutesWeek</listEntry>
 			<listEntry value="5">@Strings.Floors</listEntry>
+			<listEntry value="9">@Strings.Multi</listEntry>
 		</settingConfig>
 	</setting>
 	<setting propertyKey="@Properties.activityL" title="@Strings.ActivityTitleL">
@@ -17,6 +18,7 @@
 			<listEntry value="3">@Strings.ActiveMinutesDay</listEntry>
 			<listEntry value="4">@Strings.ActiveMinutesWeek</listEntry>
 			<listEntry value="5">@Strings.Floors</listEntry>
+			<listEntry value="9">@Strings.Multi</listEntry>
 		</settingConfig>
 	</setting>
 	<setting propertyKey="@Properties.activityR" title="@Strings.ActivityTitleR">
@@ -28,6 +30,7 @@
 			<listEntry value="4">@Strings.ActiveMinutesWeek</listEntry>
 			<listEntry value="5">@Strings.Floors</listEntry>
 			<listEntry value="8">@Strings.Minutes</listEntry>
+			<listEntry value="9">@Strings.Multi</listEntry>
 		</settingConfig>
 	</setting>
 </settings>
