@@ -18,7 +18,7 @@ using Toybox.System as Sys;
 using Toybox.Lang as Lang;
 using Toybox.Time as Time;
 using Toybox.Time.Gregorian as Calendar;
-using Toybox.SensorHistory;
+using Toybox.Complications as Complications;
 using Toybox as Toy;
 using Toybox.Math as Math;
 using Toybox.Application as App;
@@ -47,6 +47,7 @@ class lateView extends Ui.WatchFace {
 	hidden var d24;
 	hidden var burnInProtection=0;
 	hidden var lowPowerMode = false; hidden var doNotDisturb = false; hidden var sleepMode = false;
+	hidden var lastBodyBattery = -1;
 	
 	hidden var events_list = [];
 	var message = false;
@@ -71,6 +72,7 @@ class lateView extends Ui.WatchFace {
 				app.setProperty("weather", false);
 			}
 		}
+
 		WatchFace.initialize();
 
 
@@ -97,6 +99,9 @@ class lateView extends Ui.WatchFace {
 		// onBackgroundData({"weather"=>[8, 75, 62, 78, 5.960000, -1, -1, -1, 0, 0.5, 0.99, 4, 4.5, 4.99, -1, 4, 2, 2.5, 2.99, -1, 3, 3.5, 3.99, 4, 2, 6, 6.5, 6.99, 4]});
 		d24 = app.getProperty("d24") == 1 ? true : false; // making sure it loads for the first time 
 		//Sys.println("init: "+ weatherHourly);
+
+		Complications.registerComplicationChangeCallback(self.method(:onComplicationUpdate));
+		Complications.subscribeToUpdates(new Complications.Id(Complications.COMPLICATION_TYPE_BODY_BATTERY));
 	}
 
 	(:release)
@@ -377,6 +382,19 @@ class lateView extends Ui.WatchFace {
 			dateColor = dimColor(dateColor, dimFactor);
 			activityColor = dimColor(activityColor, dimFactor);
 			dimmedColor = dimColor(dimmedColor, dimFactor);
+		}
+	}
+
+	function onComplicationUpdate(complicationId) {
+		var comp = Complications.getComplication(complicationId);
+		var value = -1;
+		if (comp.value != null) {
+			value = comp.value;
+		}
+		switch (comp.getType()) {
+			case Complications.COMPLICATION_TYPE_BODY_BATTERY:
+				lastBodyBattery = value;
+				break;
 		}
 	}
 
@@ -804,18 +822,7 @@ class lateView extends Ui.WatchFace {
 		return info.floorsClimbed.toFloat()/info.floorsClimbedGoal;
 	}
 	function bodyBattery(info) {
-		if (!(Toybox has :SensorHistory)) {
-			return -1;
-		}
-		if (!(Toybox.SensorHistory has :getBodyBatteryHistory)) {
-			return -1;
-		}
-		var iter = Toybox.SensorHistory.getBodyBatteryHistory({:period => 1});
-		var sample = iter.next();
-		if (sample == null) {
-			return 3;
-		}
-		return sample.data.toFloat()/100;
+		return lastBodyBattery.toFloat()/100;
 	}
 
 	function drawActivity(dc, activity, x, y, horizontal){
@@ -854,7 +861,7 @@ class lateView extends Ui.WatchFace {
 			for (var i = 0; i < activities.size(); i += 1) {
 				var data = method(activities[i]).invoke(info);
 				if (data < 0) {
-					continue;
+					data = 1.5; // draw half bar to show no data
 				}
 
 				var angMax = 180 - 180*Math.asin(yFloor/arcR)/Math.PI;
